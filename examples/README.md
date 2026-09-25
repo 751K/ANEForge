@@ -47,6 +47,12 @@ demo logic itself stays in each file so every example is self-contained.
 - `sentence_embeddings.py` - all-MiniLM-L6-v2 + a tiny semantic search.
 - `superres_espcn.py` - ESPCN super-resolution (sub-pixel conv / pixel-shuffle).
 
+**ONNX and embedding integrations**
+- `sentence_transformers_ane.py` - drop-in `sentence-transformers` `SentenceTransformer` running the encoder on the ANE.
+- `rag_embeddings.py` - ANEForge embeddings as a LangChain `Embeddings` adapter for RAG.
+- `onnx_import.py` - import an ONNX model and run it on the ANE, validated vs onnxruntime.
+- `onnx_finetune.py` - transfer-learning from an imported ONNX model on-engine: frozen extractor + a fresh linear head trained on the ANE.
+
 **Training fully on the ANE** (forward + backward + Adam, K steps unrolled into one
 program per dispatch - no per-step host loop, and optimizer state stays RESIDENT
 on-device across dispatches; via `af.UnrolledTrainer`)
