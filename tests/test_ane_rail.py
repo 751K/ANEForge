@@ -8,7 +8,6 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "bench"))
 import _ane_rail as r   # noqa: E402
 import aggregate_rooflines as agg   # noqa: E402
-import device_compare_wattcomplete as wc   # noqa: E402
 
 
 def _s(pp0b, pacc=1.4, eacc=0.3):
@@ -62,6 +61,9 @@ def _pm(ane, cpu):
 
 
 def _measure(monkeypatch, pm_idle, pm_load, force=None):
+  # imported here, not at module level: device_compare imports mlx.core, and with MLX
+  # loaded in the pytest parent the --forked children of later tests segfault on macOS
+  import device_compare_wattcomplete as wc
   monkeypatch.setattr(wc.subprocess, "Popen", _FakePM)
   monkeypatch.setattr(wc.time, "sleep", lambda s: None)
   monkeypatch.setattr(wc, "HAVE_SUDO", True)
