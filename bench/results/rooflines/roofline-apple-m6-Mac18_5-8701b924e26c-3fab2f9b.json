@@ -13,9 +13,23 @@
       "memory_architecture": "unified",
       "ram_gb": 16,
       "ram_bytes": 17179869184,
-      "ane_rated_tops": null
+      "ane_rated_tops": null,
+      "cpu_levels": [
+        {
+          "name": "Super",
+          "cores": 2
+        },
+        {
+          "name": "Performance",
+          "cores": 4
+        },
+        {
+          "name": "Efficiency",
+          "cores": 6
+        }
+      ]
     },
-    "hardware_hash": "2bd3d20a7d10",
+    "hardware_hash": "8701b924e26c",
     "environment": {
       "model_name": "Mac mini",
       "macos_version": "27.0.1",

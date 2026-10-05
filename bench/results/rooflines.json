@@ -209,7 +209,7 @@
   {
     "chip": "Apple M6",
     "model_identifier": "Mac18,5",
-    "hardware_hash": "2bd3d20a7d10",
+    "hardware_hash": "8701b924e26c",
     "p_cores": 2,
     "e_cores": 4,
     "gpu_cores": 12,
@@ -227,6 +227,20 @@
     "matmul_inf_cliff": "~32759",
     "slice_x16_cliff": "exact (no clamp)",
     "reduce_exact_sum": "<= 2048",
-    "timestamp_utc": "2026-10-03T15:49:20Z"
+    "timestamp_utc": "2026-10-03T15:49:20Z",
+    "cpu_levels": [
+      {
+        "name": "Super",
+        "cores": 2
+      },
+      {
+        "name": "Performance",
+        "cores": 4
+      },
+      {
+        "name": "Efficiency",
+        "cores": 6
+      }
+    ]
   }
 ]
