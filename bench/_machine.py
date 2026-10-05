@@ -33,6 +33,7 @@ import uuid
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
+CANONICAL_REPO = "sbryngelson/ANEForge"   # whose main the merge-base is taken against
 
 # Paths the suite itself rewrites while it runs, excluded from the `dirty` check.
 #
@@ -192,6 +193,23 @@ def _git(*args) -> str | None:
         return None
 
 
+def _canonical_remote(remotes: str | None) -> str | None:
+    """Name of the remote that points at CANONICAL_REPO, from `git remote -v` output.
+
+    Matched by URL, not by name: in a fork checkout `origin` is the fork and the
+    canonical repo is usually `upstream`, but nothing enforces either name. Accepts
+    https and ssh URLs, with or without a trailing .git."""
+    want = CANONICAL_REPO.lower()
+    for line in (remotes or "").splitlines():
+        parts = line.split()
+        if len(parts) < 2:
+            continue
+        url = parts[1].lower().rstrip("/").removesuffix(".git")
+        if url.endswith(f"github.com/{want}") or url.endswith(f"github.com:{want}"):
+            return parts[0]
+    return None
+
+
 def _git_info() -> dict:
     """The repo commit the benchmark ran from AND how it relates to canonical main.
 
@@ -199,7 +217,8 @@ def _git_info() -> dict:
     uncommitted edits - so results taken 'today' may not match main tomorrow. We
     pin all of it: the exact HEAD, dirty flag, and the main merge-base (the commit
     on main this code derives from) plus ahead/behind counts. main_ref prefers the
-    canonical remote (origin/main) over a possibly-stale local main.
+    canonical remote's main (matched by URL, see _canonical_remote) over a fork's
+    origin/main or a possibly-stale local main.
 
     `dirty` ignores the suite's own outputs (see _SUITE_WRITES_GLOBS) so it means
     "the contributor's tree differed from HEAD", not "the benchmark ran"."""
@@ -216,9 +235,13 @@ def _git_info() -> dict:
         "dirty": dirty,
     }
 
-    # relationship to canonical main (prefer origin/main; fall back to local main)
+    # relationship to canonical main: the main of whichever remote points at
+    # CANONICAL_REPO, then upstream/main, then origin/main, then local main. In a
+    # fork checkout origin/main is the fork's own (possibly stale) main (#290).
+    canon = _canonical_remote(_git("remote", "-v"))
+    refs = ([f"{canon}/main"] if canon else []) + ["upstream/main", "origin/main", "main"]
     main_ref = None
-    for ref in ("origin/main", "main"):
+    for ref in refs:
         if _git("rev-parse", "--verify", ref):
             main_ref = ref
             break
@@ -230,6 +253,7 @@ def _git_info() -> dict:
             behind, ahead = (int(x) for x in counts.split())
         info["main"] = {
             "ref": main_ref,
+            "canonical": bool(canon) and main_ref == f"{canon}/main",  # ref matched CANONICAL_REPO by URL
             "merge_base": base,                    # the commit on main this corresponds to
             "merge_base_short": base[:12] if base else None,
             "commits_ahead": ahead,                # local commits not on main
@@ -321,6 +345,20 @@ def _rated_tops(chip: str | None) -> float | None:
     return None
 
 
+def _cpu_levels() -> list[dict] | None:
+    """Every CPU performance level, fastest first, on chips with more than two.
+
+    p_cores / e_cores read hw.perflevel0 and hw.perflevel1, which covers the
+    two-level chips (P + E, or M5 Pro's Super + Performance) but drops the third
+    level of an M6 (2 Super + 4 Performance + 6 Efficiency). Recorded only past
+    two levels, so the hardware_hash of every two-level machine is unchanged."""
+    n = _int("hw.nperflevels") or 0
+    if n <= 2:
+        return None
+    return [{"name": _sysctl(f"hw.perflevel{i}.name"), "cores": _int(f"hw.perflevel{i}.physicalcpu")}
+            for i in range(n)]
+
+
 def fingerprint() -> dict:
     """Full machine fingerprint: hardware identity + hardware_hash + environment + run_id."""
     chip = _sysctl("machdep.cpu.brand_string")
@@ -337,6 +375,9 @@ def fingerprint() -> dict:
         "ram_bytes": memsize,
         "ane_rated_tops": _rated_tops(chip),
     }
+    levels = _cpu_levels()
+    if levels:
+        hardware["cpu_levels"] = levels                     # M6: Super / Performance / Efficiency
     hardware_hash = hashlib.sha256(
         json.dumps(hardware, sort_keys=True).encode()
     ).hexdigest()[:12]
